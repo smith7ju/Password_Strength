@@ -4,16 +4,15 @@ import java.awt.event.ActionListener;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.rmi.server.SocketSecurityException;
 
 public class Frame extends javax.swing.JFrame {
 
 	static String path = "\\C:\\Users\\Dylan\\workspace\\Password_Strength\\src\\Password_List";
-	static String horrible = "horrible";
-	static String bad = "bad";
-	static String ok = "ok";
-	static String strong = "strong";
 	static boolean onList = false;
 	static String gPassword = "argHRTHER4566!@#";
+	static boolean checked = false;
+	static double bits = 0.0;
 	
     /**
      * Creates new form Password_Strength
@@ -28,51 +27,46 @@ public class Frame extends javax.swing.JFrame {
     	badTextField.setEnabled(true);
     	okTextField.setEnabled(true);
     	strongTextField.setEnabled(true);
-    	
+    	onList = false;
+    	checked = false;
     	resultLabel.setText("");
-    	
+    	bits = 0.0;
     	horribleTextField.setBackground(new java.awt.Color(219, 229, 241));
     	badTextField.setBackground(new java.awt.Color(219, 229, 241));
     	okTextField.setBackground(new java.awt.Color(219, 229, 241));
     	strongTextField.setBackground(new java.awt.Color(219, 229, 241));
-    	
-    	clearButton.addActionListener(new ActionListener(){
-    		public void actionPerformed(ActionEvent e){
-    			passwordTextField.setText("");
-    			resultLabel.setText("");
-    			
-    			horribleTextField.setBackground(new java.awt.Color(219, 229, 241));
-    	    	badTextField.setBackground(new java.awt.Color(219, 229, 241));
-    	    	okTextField.setBackground(new java.awt.Color(219, 229, 241));
-    	    	strongTextField.setBackground(new java.awt.Color(219, 229, 241));
-    		}
-    	});
-    	
-    	submitButton.addActionListener(new ActionListener(){
-    		public void actionPerformed(ActionEvent e){
-    			gPassword = passwordTextField.getText().trim();
-    			
-    			start(gPassword);
-    		}
-    	});
+    }
+    
+    private void clearButtonActionPerformed(java.awt.event.ActionEvent evt){
+    	passwordTextField.setText("");
+    	initilize();
+    }
+    
+    private void submitButtonActionPerformed(java.awt.event.ActionEvent evt){
+    	initilize();
+		
+    	gPassword = passwordTextField.getText().trim();
+		if(!gPassword.equals("")){
+			start(gPassword);
+		}
+		else{
+			resultLabel.setText("Please enter a password.");
+		}
     }
     
     private static void start(String password){
-    	String strength = horrible;
 		try {
 			checkList(gPassword);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 		if(onList == false){
-			strength = checkPasswordStrength(gPassword);
-			System.out.println("Your password strength is " + strength + " [checked]");
+			checked = true;
+			printResult(checkPasswordStrength(gPassword));
 		}
 		else{
-			if(strength.equals(horrible)){
-				horribleTextField.setBackground(Color.RED);
-				resultLabel.setText("Your Password strength is " + horrible + ".");
-			}
+			horribleTextField.setBackground(Color.RED);
+			resultLabel.setText(gPassword + " was found in the password dictionary, this is horrible.");
 		}
     }
     
@@ -95,6 +89,7 @@ public class Frame extends javax.swing.JFrame {
 		return onList;
 	}
 	
+
 	private static int readLines() throws IOException{
 		FileReader fr = new FileReader(path);
 		BufferedReader bf = new BufferedReader(fr);
@@ -108,33 +103,66 @@ public class Frame extends javax.swing.JFrame {
 		bf.close();
 		return lines;
 	}
-	
-    private static String checkPasswordStrength(String password) {
-                String  strengthPercentage = "";
-        String[] partialRegexChecks = { ".*[a-z]+.*", // lower
-                ".*[A-Z]+.*", // upper
-                ".*[\\d]+.*", // digits
-                ".*[@#$%]+.*" // symbols
+ 
+    private static double checkPasswordStrength(String password){
+        int l = password.length();
+
+        if(l == 1){//one leter
+            bits = 4;
+        }
+        if(l >= 2 && l < 9){//between 2-8
+            bits = 4 + ((l-1)*2);
+            System.out.println("2-8");
+        }
+        if(l >= 9 && l < 21){//between 9-20
+            bits = 18 + ((l-8)*1.5);
+            System.out.println("9-20");
+        }
+        if(l >= 21){//over 21
+            bits = 36 + (l-20);
+            System.out.println("20+");
+        }
+
+        String[] partialRegexChecks = {
+                "^(.*[0-9]+.*)$",
+                "(.*[a-z]+.*)",
+                "(.*[A-Z]+.*)"
         };
 
-        if(password.trim().equals("")){   
-            return strengthPercentage = "You must enter a password";
-        }
-        
-        if (password.matches(partialRegexChecks[0])) {
-        strengthPercentage = horrible;
-        }
-        if (password.matches(partialRegexChecks[1])) {
-        strengthPercentage = bad;
-        }
-        if (password.matches(partialRegexChecks[2])) {
-        strengthPercentage = ok;
-        }
-        if (password.matches(partialRegexChecks[3])) {
-        strengthPercentage = strong;
+        if (password.matches(partialRegexChecks[0]) && password.matches(partialRegexChecks[1])
+                && password.matches(partialRegexChecks[2])) {
+            bits = bits + 6.0;
+            System.out.println("case");
         }
 
-        return strengthPercentage;
+        if(checked == true && l < 18){
+            bits = bits + 6.0;
+            System.out.println("checked");
+        }
+        return bits;
+    }
+   
+    private static void printResult(double bits){
+        if(bits < 25){
+            horribleTextField.setBackground(Color.RED);
+			resultLabel.setText("Your password strength is "+ bits +" bits, this is horrible.");
+        }
+
+        else if(bits <= 32 && bits >= 25){
+            badTextField.setBackground(new Color(255, 166, 48));
+            resultLabel.setText("Your password strength is "+ bits +" bits, this is bad.");
+        }
+
+        else if(bits <= 48 && bits >= 33){
+        	okTextField.setBackground(Color.YELLOW);
+            resultLabel.setText("Your password strength is "+ bits +" bits, this is ok.");
+        }
+
+        else if(bits >= 49){
+        	strongTextField.setBackground(Color.GREEN);
+            resultLabel.setText("Your password strength is "+ bits +" bits, this is strong.");
+        }
+
     }
     
     /**
@@ -159,6 +187,18 @@ public class Frame extends javax.swing.JFrame {
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
+        clearButton.addActionListener(new ActionListener(){
+    		public void actionPerformed(ActionEvent e){
+    			clearButtonActionPerformed(e);
+    		}
+    	});
+    	
+    	submitButton.addActionListener(new ActionListener(){
+    		public void actionPerformed(ActionEvent e){
+    			submitButtonActionPerformed(e);
+    		}
+    	});
+        
         masterPanel.setBackground(new java.awt.Color(219, 229, 241));
         masterPanel.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 0, 0)));
 
@@ -286,15 +326,15 @@ public class Frame extends javax.swing.JFrame {
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
-    private javax.swing.JTextField badTextField;
+    private static javax.swing.JTextField badTextField;
     private javax.swing.JButton clearButton;
     private static javax.swing.JTextField horribleTextField;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JPanel masterPanel;
-    private javax.swing.JTextField okTextField;
-    private javax.swing.JTextField passwordTextField;
+    private static javax.swing.JTextField okTextField;
+    private static javax.swing.JTextField passwordTextField;
     private static javax.swing.JLabel resultLabel;
-    private javax.swing.JTextField strongTextField;
+    private static javax.swing.JTextField strongTextField;
     private javax.swing.JButton submitButton;
     // End of variables declaration//GEN-END:variables
 }
